@@ -164,3 +164,93 @@
 @media (prefers-reduced-motion: reduce) {
   .tasks-list > li, .requests-list > li, .bookings-list > li { animation: none; }
 }
+
+/* ========================================================================
+   MOBILE OPTIMIZATIONS
+   Shared overrides that polish the dashboard on tablets (<=900px) and phones
+   (<=600px): prevent horizontal scroll, cap the drawer, tighten card padding,
+   stack tight grids, and guarantee 44px tap targets. Per-view CSS files own
+   their own layout breakpoints; this layer only handles cross-cutting chrome.
+   ======================================================================== */
+
+@media (max-width: 900px) {
+  /* Cap the sidebar drawer so it never dominates a small screen. */
+  .ibh-sidebar {
+    width: min(280px, 85vw) !important;
+    max-width: 85vw;
+  }
+
+  /* Stronger scrim so the page behind reads as disabled when the drawer is open. */
+  .ibh-shell-scrim {
+    background: rgba(10, 30, 40, 0.55) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  /* Tighten dashboard card padding so content has more room. */
+  .ibh-metric-card,
+  .ibh-plan-card,
+  .ibh-section-card,
+  .ibh-guest-card {
+    padding: 14px;
+  }
+
+  /* Floor-plan SVG always scales down to fit. */
+  .ibh-floorplan-svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Accessibility: comfortable tap targets for interactive controls.
+     Covers buttons, form controls (selects + text-like inputs + textareas),
+     and the icon-only / inline-link controls that the button rules miss. */
+  .ibh-nav-item,
+  .ibh-mini-btn,
+  .ibh-checkin-btn,
+  button[type="submit"],
+  button[type="button"],
+  select,
+  textarea,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    min-height: 44px;
+  }
+  /* Square icon buttons need width too, not just height. */
+  .ibh-icon-btn {
+    min-width: 44px;
+  }
+  /* Inline text links used as actions (e.g. metric drill-downs) get a
+     finger-friendly hit area without changing their visual weight. */
+  .ibh-metric-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Guest cards: let the action cluster wrap below the details. */
+  .ibh-guest-card {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .ibh-guest-card-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Reservation form collapses to a single column. */
+  .ibh-resv-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Even tighter on phones. */
+  .ibh-metric-card { padding: 12px; }
+  .ibh-sidebar { width: min(280px, 88vw) !important; }
+
+  /* Keep big display headings from overflowing narrow screens. */
+  .ibh-guests-head h1,
+  #notes-heading,
+  #guests-heading {
+    font-size: 1.3rem;
+  }
+}

@@ -64,7 +64,7 @@ function ReservationForm({ rooms, busy, onSubmit, onCancel }) {
           <span>Room</span>
           <select value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} disabled={busy}>
             {rooms.map((r) => (
-              <option key={r.roomNumber} value={r.roomNumber}>Room {r.roomNumber}</option>
+              <option key={r.roomNumber} value={r.roomNumber}>Room {r.roomNumber} — {r.status}</option>
             ))}
           </select>
         </label>
@@ -165,7 +165,7 @@ export default function GuestsView() {
   const byCheckIn = (a, b) => String(a.checkIn).localeCompare(String(b.checkIn));
   const inHouse = (bookings || []).filter((b) => b.occupancyStatus === 'checked-in')
     .sort((a, b) => String(a.checkOut).localeCompare(String(b.checkOut)));
-  const arriving = (bookings || []).filter((b) => b.occupancyStatus === 'confirmed' && b.checkIn <= today).sort(byCheckIn);
+  const arriving = (bookings || []).filter((b) => b.occupancyStatus === 'confirmed' && b.checkIn === today).sort(byCheckIn);
   const upcoming = (bookings || []).filter((b) => b.occupancyStatus === 'confirmed' && b.checkIn > today).sort(byCheckIn);
 
   const run = async (id, fn, onDone) => {
@@ -218,7 +218,7 @@ export default function GuestsView() {
     <section className="ibh-role-view ibh-guests-view" data-testid="guests-view" aria-labelledby="guests-heading">
       <header className="ibh-guests-head">
         <div>
-          <h1 id="guests-heading">Guests</h1>
+          <h1 id="guests-heading">Bookings</h1>
           <p className="muted">Who's in-house, arriving, and booked ahead.</p>
         </div>
         {canManage && !showForm && (
@@ -243,7 +243,7 @@ export default function GuestsView() {
           <Section title="In-house" count={inHouse.length} hint="currently staying">
             {inHouse.map((b) => <GuestCard key={b._id} {...cardProps(b)} />)}
           </Section>
-          <Section title="Arriving" count={arriving.length} hint="ready to check in">
+          <Section title="Arriving today" count={arriving.length} hint="ready to check in">
             {arriving.map((b) => <GuestCard key={b._id} {...cardProps(b)} />)}
           </Section>
           <Section title="Upcoming" count={upcoming.length} hint="booked ahead">

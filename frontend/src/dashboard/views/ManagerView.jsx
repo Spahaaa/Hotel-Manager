@@ -2,7 +2,6 @@ import './ManagerView.css';
 import FloorPlan from '../components/FloorPlan.jsx';
 import MetricCards from '../components/MetricCards.jsx';
 import CheckoutCrunchCard from '../components/CheckoutCrunchCard.jsx';
-import LineChart from '../components/LineChart.jsx';
 import ManagerRoomDetail from '../components/ManagerRoomDetail.jsx';
 import LoadingState from '../../components/LoadingState.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
@@ -10,13 +9,15 @@ import { useRooms } from '../hooks/useRooms.js';
 import { useTasks } from '../hooks/useTasks.js';
 import { useRequests } from '../hooks/useRequests.js';
 import { buildRoomViewModels } from '../lib/roomViewModel.js';
-import { round, roundPct } from '../lib/format.js';
+import { computeReceptionMetrics } from '../lib/metrics.js';
+import { round } from '../lib/format.js';
 import { getManagerMetrics, getRoomStatusHistory } from '../data/managerMetrics.js';
 import { IconReports, IconClipboard, IconChat, IconBed, IconFloorPlan } from '../components/icons.jsx';
 import { useDashboard } from '../DashboardContext.jsx';
 
-// Manager read-only analytics. Metrics + chart come from the mock managerMetrics
-// module (swappable for a real endpoint later); the heatmap is LIVE room data.
+// Manager read-only analytics. The metric cards + heatmap are derived from LIVE
+// rooms / tasks / notes so they always agree with the floor plan; only the
+// checkout-crunch hero still comes from the mock managerMetrics module.
 export default function ManagerView() {
   const { rooms, loading: roomsLoading, error: roomsError, refetch: refetchRooms } = useRooms();
   const { tasks } = useTasks();
@@ -26,19 +27,23 @@ export default function ManagerView() {
 
   const { selectedNumber, setSelectedNumber, fullscreen, setFullscreen } = useDashboard();
 
-  const metrics = getManagerMetrics();
+  const metrics = getManagerMetrics(); // mock — only the checkout-crunch hero uses it
   const roomViewModels = buildRoomViewModels(rooms, tasks, requests); // no bookings → no guest data
   const selectedRoom = roomViewModels.find((r) => r.roomNumber === selectedNumber) ?? null;
   const history = selectedRoom ? getRoomStatusHistory(selectedRoom.roomNumber) : [];
 
-  // Cumulative tasks-completed line through the day (pure; series is tiny).
-  const chartData = metrics.tasksByHour.map((p, i, arr) => ({
-    label: p.hour.slice(0, 5),
-    value: arr.slice(0, i + 1).reduce((sum, x) => sum + x.completed, 0),
-  }));
-  const chartTotal = chartData.length ? chartData[chartData.length - 1].value : 0;
+  // LIVE figures derived from the same rooms / tasks / notes the heatmap shows,
+  // so the cards always match the floor plan.
+  const live = computeReceptionMetrics(rooms, tasks);
+  const totalRooms = rooms.length;
+  const occupancyPct = totalRooms ? round((live.occupied / totalRooms) * 100) : 0;
+  const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+  const taskCompletionPct = tasks.length ? round((completedTasks / tasks.length) * 100) : 0;
+  const outstandingNotes = requests.filter((r) => !r.resolved).length;
 
-  // Lead metrics — the manager-only insights reception can't see.
+  // Lead metrics — the manager-only insights reception can't see. Turnaround has
+  // no real source yet (no checkout→available timing is tracked), so it shows a
+  // representative placeholder from the mock module until a metrics endpoint lands.
   const leadItems = [
     {
       key: 'turnaround',
@@ -51,15 +56,15 @@ export default function ManagerView() {
     {
       key: 'tasks',
       label: 'Tasks today',
-      value: `${round(metrics.tasks.completedToday)} done`,
-      sub: `${round(metrics.tasks.outstanding)} outstanding · ${roundPct(metrics.tasks.completionRate)}% complete`,
+      value: `${completedTasks} done`,
+      sub: `${live.openTasks} outstanding · ${taskCompletionPct}% complete`,
       tone: 'available',
       Icon: IconClipboard,
     },
     {
       key: 'requests',
       label: 'Outstanding notes',
-      value: `${round(metrics.outstandingRequests)}`,
+      value: `${outstandingNotes}`,
       sub: 'shift communication backlog',
       tone: 'cleaning',
       Icon: IconChat,
@@ -71,15 +76,15 @@ export default function ManagerView() {
     {
       key: 'occupancy',
       label: 'Occupancy',
-      value: `${roundPct(metrics.occupancy.ratePct)}%`,
-      sub: `${round(metrics.occupancy.occupied)} of ${round(metrics.occupancy.total)} rooms`,
+      value: `${occupancyPct}%`,
+      sub: `${live.occupied} of ${totalRooms} rooms`,
       tone: 'occupied',
       Icon: IconBed,
     },
     {
       key: 'mix',
       label: 'Status mix',
-      value: `${round(metrics.occupancy.occupied)} · ${round(metrics.occupancy.available)} · ${round(metrics.occupancy.needsCleaning)}`,
+      value: `${live.occupied} · ${live.available} · ${live.needsCleaning}`,
       sub: 'occupied · available · cleaning',
       tone: 'teal',
       Icon: IconFloorPlan,
@@ -95,14 +100,6 @@ export default function ManagerView() {
           <CheckoutCrunchCard {...metrics.checkoutCrunch} />
 
           <MetricCards items={leadItems} />
-
-          <div className="ibh-chart-card">
-            <LineChart
-              data={chartData}
-              title="Tasks completed through the day"
-              ariaLabel={`Cumulative tasks completed through the day, reaching ${chartTotal} by end of day.`}
-            />
-          </div>
 
           <MetricCards items={secondaryItems} variant="secondary" />
 
